@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Display GeoJSON with ArcGIS API for JavaScript</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.22/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/layers/FeatureLayer",
+            "esri/layers/GeoJSONLayer",
+            "esri/views/MapView",
+            "esri/widgets/Legend",
+            "esri/widgets/Expand",
+            "esri/widgets/Home"
+        ], (Map, FeatureLayer, GeoJSONLayer, MapView, Legend, Expand, Home) => {
+
+            const popupTemplate = {
+                title: "Cluster",
+                content: "This cluster represents {cluster_count} points."
+            };
+
+            const clusterConfig = {
+                type: "cluster",
+                clusterRadius: "100px",
+                // {cluster_count} is an aggregate field containing
+                // the number of features comprised by the cluster
+                popupTemplate: {
+                    title: "Cluster summary",
+                    content: "This cluster represents {cluster_count} shotspotters.",
+                    fieldInfos: [{
+                        fieldName: "cluster_count",
+                        format: {
+                            places: 0,
+                            digitSeparator: true
+                        }
+                    }]
+                },
+                clusterMinSize: "24px",
+                clusterMaxSize: "60px",
+                labelingInfo: [{
+                    deconflictionStrategy: "none",
+                    labelExpressionInfo: {
+                        expression: "Text($feature.cluster_count, '#,###')"
+                    },
+                    symbol: {
+                        type: "text",
+                        color: "#004a5d",
+                        font: {
+                            weight: "bold",
+                            family: "Noto Sans",
+                            size: "12px"
+                        }
+                    },
+                    labelPlacement: "center-center",
+                }]
+            };
+
+            const geojsonLayer = new GeoJSONLayer({
+                url: "output.geojson",
+                popupTemplate: popupTemplate,
+                featureReduction: clusterConfig,
+                renderer: {
+                    type: "simple",
+                    field: "mag",
+                    symbol: {
+                        type: "simple-marker",
+                        size: 4,
+                        color: "#69dcff",
+                        outline: {
+                            color: "rgba(0, 139, 174, 0.5)",
+                            width: 5
+                        }
+                    }
+                }
+            });
+
+            const map = new Map({
+                basemap: "dark-gray-vector",
+                layers: [geojsonLayer]
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                zoom: 10,
+                center: [-76.6, 39.3]
+            });
+
+
+            view.ui.add(new Home({
+                view: view
+            }), "top-left");
+
+            const legend = new Legend({
+                view: view,
+                container: "legendDiv"
+            });
+            const infoDiv = document.getElementById("infoDiv");
+
+
+            view.ui.add(new Expand({
+                view: view,
+                content: infoDiv,
+                expandIcon: "list-bullet",
+                expanded: true
+            }), "top-left");
+
+            const toggleButton = document.getElementById("cluster");
+
+            // To turn off clustering on a layer, set the
+            // featureReduction property to null
+            toggleButton.addEventListener("click", () => {
+                let fr = geojsonLayer.featureReduction;
+                geojsonLayer.featureReduction = fr && fr.type === "cluster" ? null : clusterConfig;
+                toggleButton.innerText = toggleButton.innerText === "Enable Clustering" ? "Disable Clustering" : "Enable Clustering";
+            });
+        });
+    </script>
+
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #toggleDiv {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 99;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+    <div id="infoDiv" class="esri-widget">
+        <button id="cluster" class="esri-button">Disable Clustering</button>
+        <div id="legendDiv"></div>
+    </div>
+</body>
+
+</html>
